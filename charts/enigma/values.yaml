@@ -17,7 +17,7 @@ resources:
 
 ingress:
   enabled: true
-  className: traefik
+  className: nginx
   host: enigma.example.com
   annotations: {} # e.g. cert-manager.io/cluster-issuer: letsencrypt
   tlsSecretName: enigma-tls

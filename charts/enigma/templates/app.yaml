@@ -12,8 +12,6 @@ spec:
       labels:
         {{- include "enigma.labels" . | nindent 8 }}
         app.kubernetes.io/component: app
-      annotations:
-        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
     spec:
       automountServiceAccountToken: false
       securityContext:

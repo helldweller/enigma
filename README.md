@@ -90,10 +90,25 @@ install and kept across upgrades (or bring your own Secret with keys `master-key
 `redis-password` via `existingSecret`).
 
 ```sh
-helm upgrade --install enigma charts/enigma -n enigma --create-namespace \
-  --set ingress.host=enigma.example.com \
-  --set image.tag=<git sha> \
-  --set-string 'ingress.annotations.cert-manager\.io/cluster-issuer=letsencrypt'
+helm upgrade --install enigma charts/enigma -n enigma --create-namespace -f my-values.yaml \
+  --set image.tag=<git sha>
+```
+
+Example `my-values.yaml` behind Cloudflare, with the nginx.org ingress controller and
+cert-manager (HTTP-01):
+
+```yaml
+clientIpHeader: cf-connecting-ip   # only if the origin accepts 80/443 from Cloudflare alone
+ingress:
+  className: nginx
+  host: enigma.example.com
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    acme.cert-manager.io/http01-edit-in-place: "true"   # nginx.org rejects a 2nd Ingress per host
+    ingress.kubernetes.io/ssl-redirect: "false"         # Cloudflare "Flexible" talks HTTP to the origin
+    nginx.org/client-max-body-size: "4m"                # 1 MB files arrive base64-encoded in JSON
+redis:
+  storageClassName: ""   # empty = cluster default
 ```
 
 Images: `ghcr.io/helldweller/enigma:<git sha>` and `:latest`, built by GitHub Actions on every
