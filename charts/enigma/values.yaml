@@ -1,0 +1,32 @@
+image:
+  repository: ghcr.io/helldweller/enigma
+  tag: latest # CI also pushes an immutable tag per commit (the git sha); prefer that
+
+# Secret with keys `master-key` and `redis-password`. Empty: the chart generates one on
+# first install and keeps it across upgrades.
+existingSecret: ""
+
+# Header holding the real client IP, used for rate limiting. Only set it when the origin can
+# be reached solely through that proxy (e.g. cf-connecting-ip behind Cloudflare with the
+# origin firewalled to Cloudflare ranges); otherwise clients could spoof it.
+clientIpHeader: ""
+
+resources:
+  requests: { cpu: 50m, memory: 96Mi }
+  limits: { memory: 256Mi }
+
+ingress:
+  enabled: true
+  className: traefik
+  host: enigma.example.com
+  annotations: {} # e.g. cert-manager.io/cluster-issuer: letsencrypt
+  tlsSecretName: enigma-tls
+
+redis:
+  image: redis:7-alpine
+  storage: 1Gi
+  storageClassName: "" # cluster default
+  maxmemory: 200mb # keep below the memory limit
+  resources:
+    requests: { cpu: 20m, memory: 32Mi }
+    limits: { memory: 256Mi }

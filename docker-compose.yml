@@ -1,0 +1,15 @@
+# Local run: MASTER_KEY=$(openssl rand -base64 32) docker compose up --build  ->  http://localhost:3000
+services:
+  app:
+    build: .
+    ports: ["127.0.0.1:3000:3000"]
+    environment:
+      REDIS_URL: redis://redis:6379
+      MASTER_KEY: ${MASTER_KEY:?set MASTER_KEY, e.g. MASTER_KEY=$(openssl rand -base64 32)}
+    depends_on: [redis]
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes: [redis-data:/data]
+volumes:
+  redis-data:

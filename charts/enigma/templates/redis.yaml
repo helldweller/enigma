@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ .Release.Name }}-redis
+  labels: {{- include "enigma.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ .Release.Name }}-redis
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: redis }
+  template:
+    metadata:
+      labels:
+        {{- include "enigma.labels" . | nindent 8 }}
+        app.kubernetes.io/component: redis
+      annotations:
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: redis
+          image: {{ .Values.redis.image }}
+          args:
+            - --appendonly
+            - "yes"
+            - --save
+            - ""
+            - --maxmemory
+            - {{ .Values.redis.maxmemory | quote }}
+            - --requirepass
+            - $(REDIS_PASSWORD)
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ include "enigma.secretName" . }}, key: redis-password } }
+            - name: REDISCLI_AUTH # used by the redis-cli probes
+              valueFrom: { secretKeyRef: { name: {{ include "enigma.secretName" . }}, key: redis-password } }
+          ports:
+            - { name: redis, containerPort: 6379 }
+          readinessProbe:
+            exec: { command: [redis-cli, ping] }
+            periodSeconds: 10
+          livenessProbe:
+            exec: { command: [redis-cli, ping] }
+            periodSeconds: 20
+            failureThreshold: 6
+          resources: {{- toYaml .Values.redis.resources | nindent 12 }}
+          securityContext: {{- include "enigma.securityContext" . | nindent 12 }}
+          volumeMounts:
+            - { name: data, mountPath: /data }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        {{- with .Values.redis.storageClassName }}
+        storageClassName: {{ . }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.redis.storage }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-redis
+  labels: {{- include "enigma.labels" . | nindent 4 }}
+spec:
+  clusterIP: None
+  selector: { app.kubernetes.io/instance: {{ .Release.Name }}, app.kubernetes.io/component: redis }
+  ports:
+    - { name: redis, port: 6379, targetPort: redis }
